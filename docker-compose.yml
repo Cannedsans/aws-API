@@ -1,0 +1,13 @@
+services:
+   localstack:
+      container_name: api_aws
+      image: localstack/localstack
+      ports:
+         - "4566:4566"
+      environment:
+         - DEBUG=1
+         - SERVICES=lambda,apigateway,dynamodb,logs
+      volumes:
+         - "/var/run/docker.sock:/var/run/docker.sock"
+      extra_hosts:
+         - "host.docker.internal:host-gateway"
