@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/Cannedsans/aws-API/internal/config"
 	"github.com/Cannedsans/aws-API/internal/models"
@@ -26,7 +28,9 @@ func insert_tasks(ctx context.Context, request events.APIGatewayProxyRequest) (e
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400, Body: "JSON Inválido"}, nil
 	}
-
+	if tarefa.ID == "" {
+		tarefa.ID = fmt.Sprintf("%d", time.Now().UnixNano())
+	}
 	err = models.SaveData(ctx, config.GetClient(), tarefa)
 
 	if err != nil {
