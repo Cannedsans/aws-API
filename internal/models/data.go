@@ -13,10 +13,10 @@ import (
 )
 
 type Tarefa struct {
-    ID        string `json:"id" dynamodbav:"id"` 
-    Tarefa    string `json:"tarefa" dynamodbav:"tarefa"`
-    Descricao string `json:"descricao" dynamodbav:"descricao"`
-    Feito     bool   `json:"feito" dynamodbav:"feito"`
+	ID        string `json:"id" dynamodbav:"id"`
+	Tarefa    string `json:"tarefa" dynamodbav:"tarefa"`
+	Descricao string `json:"descricao" dynamodbav:"descricao"`
+	Feito     bool   `json:"feito" dynamodbav:"feito"`
 }
 
 // CORREÇÃO: Retorne um erro em vez de matar o programa
@@ -55,44 +55,62 @@ func SaveData(ctx context.Context, client *dynamodb.Client, tarefa Tarefa) error
 	return err
 }
 func UpdateData(ctx context.Context, client *dynamodb.Client, tarefaInput Tarefa, id string) (Tarefa, error) {
-    if id == "" {
-        return Tarefa{}, fmt.Errorf("id do item não pode estar vazio")
-    }
+	if id == "" {
+		return Tarefa{}, fmt.Errorf("id do item não pode estar vazio")
+	}
 
-    var tarefaAtualizada Tarefa
-    exprParts := []string{}
-    attrValues := make(map[string]types.AttributeValue)
+	var tarefaAtualizada Tarefa
+	exprParts := []string{}
+	attrValues := make(map[string]types.AttributeValue)
 
-    // Montagem dinâmica dos campos
-    if tarefaInput.Tarefa != "" {
-        exprParts = append(exprParts, "tarefa = :t")
-        attrValues[":t"] = &types.AttributeValueMemberS{Value: tarefaInput.Tarefa}
-    }
-    if tarefaInput.Descricao != "" {
-        exprParts = append(exprParts, "descricao = :d")
-        attrValues[":d"] = &types.AttributeValueMemberS{Value: tarefaInput.Descricao}
-    }
-    
-    // Campo booleano sempre enviamos para garantir o estado
-    exprParts = append(exprParts, "feito = :f")
-    attrValues[":f"] = &types.AttributeValueMemberBOOL{Value: tarefaInput.Feito}
+	// Montagem dinâmica dos campos
+	if tarefaInput.Tarefa != "" {
+		exprParts = append(exprParts, "tarefa = :t")
+		attrValues[":t"] = &types.AttributeValueMemberS{Value: tarefaInput.Tarefa}
+	}
+	if tarefaInput.Descricao != "" {
+		exprParts = append(exprParts, "descricao = :d")
+		attrValues[":d"] = &types.AttributeValueMemberS{Value: tarefaInput.Descricao}
+	}
 
-    updateExpression := "SET " + strings.Join(exprParts, ", ")
+	// Campo booleano sempre enviamos para garantir o estado
+	exprParts = append(exprParts, "feito = :f")
+	attrValues[":f"] = &types.AttributeValueMemberBOOL{Value: tarefaInput.Feito}
 
-    result, err := client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
-        TableName: aws.String(config.Table), // Certifique-se que config.Table está carregado
-        Key: map[string]types.AttributeValue{
-            "id": &types.AttributeValueMemberS{Value: id},
-        },
-        UpdateExpression:          aws.String(updateExpression),
-        ExpressionAttributeValues: attrValues,
-        ReturnValues:              types.ReturnValueAllNew,
-    })
+	updateExpression := "SET " + strings.Join(exprParts, ", ")
 
-    if err != nil {
-        return Tarefa{}, err
-    }
+	result, err := client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName: aws.String(config.Table), // Certifique-se que config.Table está carregado
+		Key: map[string]types.AttributeValue{
+			"id": &types.AttributeValueMemberS{Value: id},
+		},
+		UpdateExpression:          aws.String(updateExpression),
+		ExpressionAttributeValues: attrValues,
+		ReturnValues:              types.ReturnValueAllNew,
+	})
 
-    err = attributevalue.UnmarshalMap(result.Attributes, &tarefaAtualizada)
-    return tarefaAtualizada, err
+	if err != nil {
+		return Tarefa{}, err
+	}
+
+	err = attributevalue.UnmarshalMap(result.Attributes, &tarefaAtualizada)
+	return tarefaAtualizada, err
+}
+
+func DeleData(ctx context.Context, client *dynamodb.Client, id string) error {
+	if id == "" {
+		return fmt.Errorf("id do item não pode estar vazio")
+	}
+
+	_, err := client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(config.Table),
+		Key: map[string]types.AttributeValue{
+			"id": &types.AttributeValueMemberS{Value: id},
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+	return nil
 }

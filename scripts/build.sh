@@ -19,16 +19,22 @@ echo "⚙️ Compilando binários Go..."
 go build -ldflags="-s -w" -o build/list/bootstrap lambdas/list-tasks/main.go
 go build -ldflags="-s -w" -o build/create/bootstrap lambdas/inset-tasks/main.go
 go build -ldflags="-s -w" -o build/edit/bootstrap lambdas/edit-tasks/main.go
+go build -ldflags="-s -w" -o build/delete/bootstrap lambdas/delete-tasks/main.go
+
 
 echo "📦 Zipando arquivos..."
 cp .env build/list/.env && cd build/list && zip -j list_function.zip bootstrap .env && cd ../..
 cp .env build/create/.env && cd build/create && zip -j create_function.zip bootstrap .env && cd ../..
 cp .env build/edit/.env && cd build/edit && zip -j edit_function.zip bootstrap .env && cd ../..
+cp .env build/delete/.env && cd build/delete && zip -j delete_function.zip bootstrap .env && cd ../..
+
 
 echo "🧹 Removendo recursos antigos..."
 aws $ENDPOINT $PROFILE lambda delete-function --function-name list_tasks_lambda 2>/dev/null
 aws $ENDPOINT $PROFILE lambda delete-function --function-name create_task_lambda 2>/dev/null
 aws $ENDPOINT $PROFILE lambda delete-function --function-name edit_task_lambda 2>/dev/null
+aws $ENDPOINT $PROFILE lambda delete-function --function-name delete_task_lambda 2>/dev/null
+
 # Nota: Como estamos criando uma nova REST API a cada execução, os IDs mudam, o que evita conflitos no API Gateway.
 
 # 3. Criando Lambdas
@@ -53,6 +59,13 @@ aws $ENDPOINT $PROFILE lambda create-function \
     --runtime provided.al2023 \
     --handler bootstrap \
     --zip-file fileb://build/edit/edit_function.zip \
+    --role arn:aws:iam::$ACCOUNT_ID:role/lambda-role7
+
+aws $ENDPOINT $PROFILE lambda create-function \
+    --function-name delete_task_lambda \
+    --runtime provided.al2023 \
+    --handler bootstrap \
+    --zip-file fileb://build/delete/delete_function.zip \
     --role arn:aws:iam::$ACCOUNT_ID:role/lambda-role
 
 # 4. Configurando API Gateway
@@ -88,10 +101,12 @@ configurar_metodo() {
         --source-arn "arn:aws:execute-api:$REGION:$ACCOUNT_ID:$API_ID/*/$METHOD/tasks"
 }
 
-echo "🛠️ Configurando endpoints GET, POST e PUT..."
+echo "🛠️ Configurando endpoints"
 configurar_metodo "GET" "list_tasks_lambda"
 configurar_metodo "POST" "create_task_lambda"
 configurar_metodo "PUT" "edit_task_lambda"
+configurar_metodo "DELETE" "delete_task_lambda"
+
 
 # 5. Deploy Final
 echo "🚀 Criando Deployment..."
